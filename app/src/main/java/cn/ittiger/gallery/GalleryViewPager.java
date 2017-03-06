@@ -5,9 +5,10 @@ import android.support.v4.view.MotionEventCompat;
 import android.support.v4.view.ViewCompat;
 import android.support.v4.view.ViewPager;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.ViewGroup;
 import android.widget.OverScroller;
 
 /**
@@ -15,14 +16,15 @@ import android.widget.OverScroller;
  */
 public class GalleryViewPager extends ViewPager {
     private int mTouchSlop;
-
     private float mInitialMotionX;
     private float mInitialMotionY;
     private float mLastMotionX;
     private float mLastMotionY;
+    private int mImageHeight;//图片高度
+    private int mScrollUpHeight;//上滑高度
+    private int mScrollDownHeight;//下滑高度
     private OverScroller mOverScroller;
-    private float mHalfScreenHeight;
-    private MovingListener mMovingListener;
+    private ScrollListener mScrollListener;
 
     public GalleryViewPager(Context context) {
 
@@ -39,34 +41,18 @@ public class GalleryViewPager extends ViewPager {
 
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
         mOverScroller = new OverScroller(context);
-
-        addOnPageChangeListener(new OnPageChangeListener() {
-            @Override
-            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-
-            }
-
-            @Override
-            public void onPageSelected(int position) {
-
-                setTag(position);
-            }
-
-            @Override
-            public void onPageScrollStateChanged(int state) {
-
-            }
-        });
     }
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
 
-        if(mHalfScreenHeight == 0) {
-            mHalfScreenHeight = getBottom() / 4 * 3;
-            Log.d("Gallery", getBottom() + "");
-            Log.d("Gallery", "mHalfScreenHeight:" + mHalfScreenHeight);
-        }
+        View itemView = findViewWithTag(getCurrentItem());
+        View imageView = ((ViewGroup)itemView).getChildAt(0);
+        int itemHeight = itemView.getMeasuredHeight();
+        mImageHeight = imageView.getMeasuredHeight();
+        mScrollUpHeight = imageView.getBottom();
+        mScrollDownHeight = itemHeight - imageView.getTop();
+
         boolean flag = super.onInterceptTouchEvent(event);
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
@@ -78,7 +64,7 @@ public class GalleryViewPager extends ViewPager {
                 final float xDiff = Math.abs(x - mLastMotionX);
                 final float y = event.getY();
                 final float yDiff = Math.abs(y - mLastMotionY);
-                if (yDiff > mTouchSlop && yDiff * 0.5f > xDiff) {//垂直方向
+                if (yDiff > mTouchSlop && yDiff * 0.5f > xDiff) {//垂直方向滑动时拦截滑动事件
                     flag = true;
                 }
                 break;
@@ -103,46 +89,62 @@ public class GalleryViewPager extends ViewPager {
                 float yDiff = Math.abs(y - mInitialMotionY);
                 if (yDiff > mTouchSlop && yDiff * 0.5f > xDiff) {//垂直方向
                     scrollBy(0, -(int) (y - mLastMotionY + 0.5f));
-//                    this.setTranslationY(y - mInitialMotionY);
-                    if(mMovingListener != null) {
-                        float percent = yDiff / mHalfScreenHeight > 0.99 ? 1 : yDiff / mHalfScreenHeight;
-                        mMovingListener.onMoving(percent);
+                    int distance = y >= mInitialMotionY ? mScrollDownHeight : mScrollUpHeight;
+                    if(mScrollListener != null) {
+                        float percent = yDiff / distance > 0.99 ? 1 : yDiff / distance;
+                        mScrollListener.onScrolling(percent);
                     }
                 }
                 mLastMotionX = event.getX();
                 mLastMotionY = event.getY();
                 break;
             case MotionEvent.ACTION_UP:
+                x = event.getX();
+                xDiff = Math.abs(x - mInitialMotionX);
                 y = event.getY();
                 yDiff = Math.abs(y - mInitialMotionY);
-                FlingRunnable runnable = new FlingRunnable(mHalfScreenHeight, yDiff, y - mInitialMotionY < 0);
-                runnable.start();
+                if (yDiff > mTouchSlop && yDiff * 0.5f > xDiff) {//垂直方向
+                    FlingRunnable runnable = new FlingRunnable(yDiff, y - mInitialMotionY < 0);
+                    runnable.start();
+                }
                 break;
         }
         return super.onTouchEvent(event);
     }
 
-    public void setMovingListener(MovingListener movingListener) {
+    public void setScrollListener(ScrollListener scrollListener) {
 
-        mMovingListener = movingListener;
+        mScrollListener = scrollListener;
     }
 
-    public interface MovingListener {
+    public interface ScrollListener {
 
-        void onMoving(float percent);
+        void onScrolling(float percent);
     }
 
     class FlingRunnable implements Runnable {
-        private float mDistance;
-        private float mMovedDis;
-        private boolean mIsUp;
-        private float mLastY;
+        private float mDistance;//向上或向下滑动的总距离
+        private float mFlingDistance;//松开手指后需要滑动的总距离
+        private float mCurDistance;//当前已滑动的距离
+        private boolean mScrollUp;//是否向上滑动
+        private int mLastY = 0;
+        private boolean mRestore;//是否为恢复到滑动前的原位置
 
-        public FlingRunnable(float distance, float movedDis, boolean isUp) {
+        public FlingRunnable(float movedDis, boolean scrollUp) {
 
-            mDistance = distance;
-            mMovedDis = mLastY = movedDis;
-            mIsUp = isUp;
+            mScrollUp = scrollUp;
+            mDistance  = scrollUp ? mScrollUpHeight : mScrollDownHeight;//总共要滑动的距离
+            if(movedDis < mImageHeight / 3.0) {//已滑动距离小于图片的1/3高度，恢复到源位置
+                mCurDistance = 0;
+                mFlingDistance = movedDis;
+                mScrollUp = !scrollUp;
+                mRestore = true;
+            } else {
+                mLastY = (int) (movedDis + 0.5f);
+                mCurDistance = movedDis;
+                mFlingDistance = mDistance;
+                mRestore = false;
+            }
         }
 
         @Override
@@ -152,27 +154,28 @@ public class GalleryViewPager extends ViewPager {
                 if (mOverScroller.computeScrollOffset()) {
                     int currY = mOverScroller.getCurrY();
                     int y;
-                    if(mIsUp) {
-                        y = (int) (currY - mLastY);
+                    if(mScrollUp) {
+                        y = currY - mLastY;
                     } else {
-                        y = -(int) (currY - mLastY);
+                        y = -(currY - mLastY);
                     }
                     GalleryViewPager.this.scrollBy(0, y);
                     ViewCompat.postOnAnimation(GalleryViewPager.this, this);
-                    if(mMovingListener != null) {
-                        mMovingListener.onMoving(currY/mDistance);
+                    if(mScrollListener != null) {
+                        float percent = (mRestore ? mFlingDistance - currY : currY) / mDistance;
+                        mScrollListener.onScrolling(percent);
                     }
                     mLastY = currY;
                 } else {
-                    if(mMovingListener != null) {
-                        mMovingListener.onMoving(1);
+                    if(mScrollListener != null) {
+                        mScrollListener.onScrolling(mRestore ? 0 : 1);
                     }
                 }
             }
         }
 
         public void start() {
-            mOverScroller.startScroll(0, (int) mMovedDis, 0, (int)mDistance, 300);
+            mOverScroller.startScroll(0, (int) (mCurDistance + 0.5f), 0, (int)(mFlingDistance + 0.5f), 1000);
             ViewCompat.postOnAnimation(GalleryViewPager.this, this);
         }
     }

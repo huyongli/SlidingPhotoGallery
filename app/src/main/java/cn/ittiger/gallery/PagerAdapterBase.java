@@ -51,7 +51,7 @@ public abstract class PagerAdapterBase<T> extends PagerAdapter {
 	@Override
 	public Object instantiateItem(ViewGroup view, int position) {
 		View layout = inflater.inflate(viewId, view, false);
-		layout.setTag(list.get(position));
+		layout.setTag(position);
 		
 		initPagerItemView(layout, position);
 		

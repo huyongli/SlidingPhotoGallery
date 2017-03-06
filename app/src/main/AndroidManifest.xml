@@ -15,7 +15,8 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".GalleryActivity" android:theme="@style/GalleryStyle" />
+        <activity android:name=".GalleryActivity"
+                  android:theme="@style/GalleryStyle"/>
     </application>
 
 </manifest>

@@ -5,8 +5,8 @@ import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -16,7 +16,7 @@ import java.util.List;
 /**
  * Created by ylhu on 17-2-24.
  */
-public class GalleryActivity extends AppCompatActivity implements GalleryViewPager.MovingListener {
+public class GalleryActivity extends AppCompatActivity implements GalleryViewPager.ScrollListener {
     private GalleryViewPager mViewPager;
     private TextView mTextView;
     private Integer[] mImages = {R.drawable.girl1, R.drawable.girl2, R.drawable.girl3, R.drawable.girl4, R.drawable.girl5, R.drawable.girl6};
@@ -33,7 +33,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryViewPag
         mRoot = findViewById(R.id.blackView);
         mAdapter = new MyViewPagerAdapter(this, R.layout.page_view_item, Arrays.asList(mImages));
         mViewPager.setAdapter(mAdapter);
-        mViewPager.setMovingListener(this);
+        mViewPager.setScrollListener(this);
 
         mTextView.setText("1/" + mAdapter.getCount());
         mViewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
@@ -70,14 +70,21 @@ public class GalleryActivity extends AppCompatActivity implements GalleryViewPag
     }
 
     @Override
-    public void onMoving(float percent) {
+    public void onScrolling(float percent) {
 
-        if(mTextView.getVisibility() == View.VISIBLE) {
-            mTextView.setVisibility(View.GONE);
+        if(percent > 0) {
+            if(mTextView.getVisibility() == View.VISIBLE) {
+                mTextView.setVisibility(View.GONE);
+            }
+        } else {
+            if(mTextView.getVisibility() == View.GONE) {
+                mTextView.setVisibility(View.VISIBLE);
+            }
         }
         mRoot.setAlpha(1 - percent);
         if(percent == 1) {
-            onBackPressed();
+            getWindow().setFlags(WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN, WindowManager.LayoutParams.FLAG_FORCE_NOT_FULLSCREEN);
+            finish();
         }
 //        Log.d("Gallery", percent + "");
     }
