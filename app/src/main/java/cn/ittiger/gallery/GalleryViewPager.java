@@ -39,13 +39,31 @@ public class GalleryViewPager extends ViewPager {
 
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
         mOverScroller = new OverScroller(context);
+
+        addOnPageChangeListener(new OnPageChangeListener() {
+            @Override
+            public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
+
+            }
+
+            @Override
+            public void onPageSelected(int position) {
+
+                setTag(position);
+            }
+
+            @Override
+            public void onPageScrollStateChanged(int state) {
+
+            }
+        });
     }
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
 
         if(mHalfScreenHeight == 0) {
-            mHalfScreenHeight = getBottom() / 2;
+            mHalfScreenHeight = getBottom() / 4 * 3;
             Log.d("Gallery", getBottom() + "");
             Log.d("Gallery", "mHalfScreenHeight:" + mHalfScreenHeight);
         }
@@ -154,7 +172,7 @@ public class GalleryViewPager extends ViewPager {
         }
 
         public void start() {
-            mOverScroller.startScroll(0, (int) mMovedDis, 0, (int)mDistance, 700);
+            mOverScroller.startScroll(0, (int) mMovedDis, 0, (int)mDistance, 300);
             ViewCompat.postOnAnimation(GalleryViewPager.this, this);
         }
     }

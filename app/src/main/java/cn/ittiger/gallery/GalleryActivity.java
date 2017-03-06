@@ -75,7 +75,7 @@ public class GalleryActivity extends AppCompatActivity implements GalleryViewPag
         if(mTextView.getVisibility() == View.VISIBLE) {
             mTextView.setVisibility(View.GONE);
         }
-        mRoot.setAlpha(1 - percent / 2);
+        mRoot.setAlpha(1 - percent);
         if(percent == 1) {
             onBackPressed();
         }
